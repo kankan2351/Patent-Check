@@ -1,30 +1,117 @@
-# Patent-check
+# Patent Check
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+一个基于 Next.js 15 与 React 19 构建的专利文本质量检查工具，帮助代理人快速发现权利要求书或说明书中的常见形式问题。系统内置多种校验规则，并支持按需扩展自定义规则，适合在撰写与审校阶段辅助排查格式和标号一致性问题。
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/fk-u-vercel/v0-patent-check-hd)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/DiFEHYSD8w6)
+## 目录
 
-## Overview
+- [项目简介](#项目简介)
+- [核心功能](#核心功能)
+- [目录结构](#目录结构)
+- [主要组件说明](#主要组件说明)
+- [本地开发](#本地开发)
+- [使用指南](#使用指南)
+- [自定义规则与分类](#自定义规则与分类)
+- [部署说明](#部署说明)
+- [技术栈](#技术栈)
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+## 项目简介
 
-## Deployment
+该项目提供一个网页工具用于检查中文专利文本的形式错误。用户可以粘贴专利文本、维护附图标记说明，并针对不同类别的检查结果进行逐项排查。所有自定义规则与分类保存在浏览器 LocalStorage 中，方便持续迭代而不会影响其他用户。
 
-Your project is live at:
+## 核心功能
 
-**[https://vercel.com/fk-u-vercel/v0-patent-check-hd](https://vercel.com/fk-u-vercel/v0-patent-check-hd)**
+- **文本类型自动识别**：根据关键词自动判断输入文本属于权利要求书、说明书或未知类型，辅助选择适用的校验规则。
+- **引用关系检查**：模拟校验权利要求之间的引用、说明书对附图标记的引用等常见错误提示。
+- **标号一致性检查**：识别同一技术特征使用多个标号或同一标号对应多种技术特征等问题。
+- **附图标记比对**：支持粘贴附图标记说明文本，并与说明书正文交叉检查标号与特征是否匹配。
+- **其他格式检查**：针对权利要求格式、数字与单位之间空格等规则给出提醒。
+- **自定义规则系统**：通过界面新增、编辑、删除规则，可选择正则匹配或普通字符串匹配，并配置严重程度、建议及分类。
+- **分类管理与过滤**：维护自定义分类标签，快速按分类过滤规则列表。
+- **良好的交互体验**：基于 shadcn/ui 组件库构建的响应式界面，支持错误统计、标签切换与折叠面板等交互。
 
-## Build your app
+## 目录结构
 
-Continue building your app on:
+```
+app/                # Next.js 应用入口与页面
+components/         # 功能组件（专利检查器、自定义规则、分类管理等）
+lib/                # 公共工具与辅助函数
+public/             # 静态资源
+styles/             # Tailwind 与全局样式
+types/              # TypeScript 类型定义
+```
 
-**[https://v0.dev/chat/projects/DiFEHYSD8w6](https://v0.dev/chat/projects/DiFEHYSD8w6)**
+## 主要组件说明
 
-## How It Works
+- `components/patent-checker.tsx`：应用的核心组件，负责文本类型识别、检查流程、结果统计与展示，同时调度自定义规则与附图标记检查逻辑。
+- `components/custom-rules-manager.tsx`：自定义规则管理面板，提供增删改、启用/禁用、分类筛选等交互，数据保存在 LocalStorage。
+- `components/category-manager.tsx`：用于维护自定义分类，支持重命名、删除与排序。
+- `types/rule.ts`：定义自定义规则的 TypeScript 类型，包括规则描述、建议、严重程度、分类等字段。
+- `components/ui/*`：基于 shadcn/ui 的封装组件，保证统一的视觉风格与交互体验。
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+## 本地开发
+
+1. **准备环境**
+   - Node.js ≥ 18
+   - 推荐使用 [pnpm](https://pnpm.io/) 进行包管理
+
+2. **安装依赖**
+
+   ```bash
+   pnpm install
+   ```
+
+3. **启动开发服务器**
+
+   ```bash
+   pnpm dev
+   ```
+
+   默认在 [http://localhost:3000](http://localhost:3000) 提供热更新开发环境。
+
+4. **代码检查与构建**
+
+   ```bash
+   pnpm lint   # 运行 Next.js 内置 ESLint 规则
+   pnpm build  # 产出生产环境构建产物
+   pnpm start  # 预览构建结果
+   ```
+
+## 使用指南
+
+1. 在首页粘贴需要检查的专利文本，系统会自动识别文本类型并显示对应标签。
+2. 若需要校对附图标记说明，可展开“附图标记说明”折叠面板并粘贴内容。
+3. 点击“检查文本”，应用会模拟执行多类规则校验，并按照“引用检查 / 标号一致性 / 附图标记 / 其他问题 / 自定义规则”进行分类展示。
+4. 每条结果包含问题描述、所在行号、原始文本与修改建议，可逐项排查。
+5. 通过顶部按钮打开自定义规则管理器，维护专属的匹配规则以覆盖特殊场景。
+
+## 自定义规则与分类
+
+- **添加规则**：在“自定义规则”面板中点击“添加规则”，填写名称、匹配模式（支持正则表达式）、错误提示、修复建议、严重程度与分类。
+- **启用/禁用**：通过开关快速控制某条规则是否参与当前检查。
+- **分类管理**：点击“管理分类”创建、重命名或删除分类标签，并可在规则列表顶部按分类筛选。
+- **数据持久化**：所有自定义规则与分类保存在浏览器 LocalStorage 中，不会影响其他用户或部署环境。
+
+## 部署说明
+
+项目基于 Next.js，可直接部署到 Vercel、Netlify 或自托管环境。推荐流程如下：
+
+1. **Vercel 自动部署**
+   - 将仓库连接到 Vercel，新建项目时选择该仓库。
+   - 构建命令使用 `pnpm build`，输出目录沿用 Next.js 默认设置。
+   - 部署完成后即可通过 Vercel 提供的域名访问。
+
+2. **自托管部署**
+   - 运行 `pnpm build` 生成 `.next` 构建产物。
+   - 使用 `pnpm start` 启动生产服务器（默认端口 3000），或将 `.next` 产物交给容器化/PM2 等服务托管。
+   - 如需反向代理，确保正确转发到 Node.js 运行端口。
+
+## 技术栈
+
+- [Next.js 15](https://nextjs.org/) 与 App Router 架构
+- [React 19](https://react.dev/) + TypeScript 静态类型
+- [Tailwind CSS](https://tailwindcss.com/) 与 `tailwindcss-animate`
+- [shadcn/ui](https://ui.shadcn.com/) 组件集合
+- [lucide-react](https://lucide.dev/) 图标库
+- [react-hook-form](https://react-hook-form.com/)、[zod](https://zod.dev/) 等表单与校验工具
+
+欢迎按照业务需求扩展规则库或集成真实的专利语义分析服务，使工具更加贴近实际工作流程。
