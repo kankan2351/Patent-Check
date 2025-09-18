@@ -25,9 +25,10 @@ import {
 import { CustomRulesManager } from "@/components/custom-rules-manager"
 import type { CustomRule } from "@/types/rule"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { extractFeatureNumberPairs } from "@/lib/patent-text"
 
 // 专利文本类型
-type PatentTextType = "claims" | "specification" | "unknown"
+export type PatentTextType = "claims" | "specification" | "unknown"
 
 export function PatentChecker() {
   const [patentText, setPatentText] = useState("")
@@ -240,34 +241,26 @@ export function PatentChecker() {
     const specNumberMap = new Map<string, string[]>() // 技术特征 -> 标号数组
 
     const lines = text.split("\n")
-    lines.forEach((line, index) => {
-      // 匹配格式为"技术特征(数字)"的内容
-      const matches = line.match(/([^\d\s]+)$$(\d+)$$/g)
-      if (matches) {
-        matches.forEach((match) => {
-          const parts = match.match(/([^\d\s]+)$$(\d+)$$/)
-          if (parts && parts[1] && parts[2]) {
-            const feature = parts[1].trim()
-            const number = parts[2]
+    lines.forEach((line) => {
+      // 匹配格式为"技术特征(数字)"或"技术特征（数字）"的内容
+      const matches = extractFeatureNumberPairs(line)
+      matches.forEach(({ feature, number }) => {
+        // 添加到标号 -> 技术特征映射
+        if (!specFeatureMap.has(number)) {
+          specFeatureMap.set(number, [])
+        }
+        if (!specFeatureMap.get(number)?.includes(feature)) {
+          specFeatureMap.get(number)?.push(feature)
+        }
 
-            // 添加到标号 -> 技术特征映射
-            if (!specFeatureMap.has(number)) {
-              specFeatureMap.set(number, [])
-            }
-            if (!specFeatureMap.get(number)?.includes(feature)) {
-              specFeatureMap.get(number)?.push(feature)
-            }
-
-            // 添加到技术特征 -> 标号映射
-            if (!specNumberMap.has(feature)) {
-              specNumberMap.set(feature, [])
-            }
-            if (!specNumberMap.get(feature)?.includes(number)) {
-              specNumberMap.get(feature)?.push(number)
-            }
-          }
-        })
-      }
+        // 添加到技术特征 -> 标号映射
+        if (!specNumberMap.has(feature)) {
+          specNumberMap.set(feature, [])
+        }
+        if (!specNumberMap.get(feature)?.includes(number)) {
+          specNumberMap.get(feature)?.push(number)
+        }
+      })
     })
 
     // 检查附图标记说明中的标号在说明书中是否存在
@@ -630,17 +623,10 @@ function checkReferences(text: string, textType: PatentTextType): ErrorItem[] {
   const referencePattern = /(\d+)/g
 
   // 第一遍扫描，收集所有定义的标号
-  lines.forEach((line, index) => {
-    // 假设权利要求中的定义格式为"...技术特征(数字)..."
-    const matches = line.match(/([^\d\s]+)$$(\d+)$$/g)
-    if (matches) {
-      matches.forEach((match) => {
-        const number = match.match(/$$(\d+)$$/)
-        if (number && number[1]) {
-          definedNumbers.add(number[1])
-        }
-      })
-    }
+  lines.forEach((line) => {
+    // 假设权利要求中的定义格式为"...技术特征(数字)..."或"...技术特征（数字）..."
+    const matches = extractFeatureNumberPairs(line)
+    matches.forEach(({ number }) => definedNumbers.add(number))
   })
 
   // 第二遍扫描，查找引用但未定义的标号
@@ -687,7 +673,7 @@ function checkReferences(text: string, textType: PatentTextType): ErrorItem[] {
 }
 
 // 检查技术特征与标号一致性
-function checkNumberConsistency(text: string, textType: PatentTextType): ErrorItem[] {
+export function checkNumberConsistency(text: string, textType: PatentTextType): ErrorItem[] {
   const errors: ErrorItem[] = []
   const lines = text.split("\n")
 
@@ -695,44 +681,36 @@ function checkNumberConsistency(text: string, textType: PatentTextType): ErrorIt
   const featureMap = new Map<string, string>()
 
   lines.forEach((line, index) => {
-    // 匹配格式为"技术特征(数字)"的内容
-    const matches = line.match(/([^\d\s]+)$$(\d+)$$/g)
-    if (matches) {
-      matches.forEach((match) => {
-        const parts = match.match(/([^\d\s]+)$$(\d+)$$/)
-        if (parts && parts[1] && parts[2]) {
-          const feature = parts[1].trim()
-          const number = parts[2]
+    // 匹配格式为"技术特征(数字)"或"技术特征（数字）"的内容
+    const matches = extractFeatureNumberPairs(line)
+    matches.forEach(({ feature, number }) => {
+      // 检查该技术特征是否已经有不同的标号
+      if (featureMap.has(feature) && featureMap.get(feature) !== number) {
+        errors.push({
+          id: `num-${index}-${feature}`,
+          text: line,
+          line: index + 1,
+          description: `技术特征"${feature}"使用了不一致的标号：之前使用"${featureMap.get(feature)}"，现在使用"${number}"。`,
+          suggestion: "请统一使用相同的标号表示相同的技术特征。",
+        })
+      }
 
-          // 检查该技术特征是否已经有不同的标号
-          if (featureMap.has(feature) && featureMap.get(feature) !== number) {
-            errors.push({
-              id: `num-${index}-${feature}`,
-              text: line,
-              line: index + 1,
-              description: `技术特征"${feature}"使用了不一致的标号：之前使用"${featureMap.get(feature)}"，现在使用"${number}"。`,
-              suggestion: "请统一使用相同的标号表示相同的技术特征。",
-            })
-          }
-
-          // 检查该标号是否已经用于不同的技术特征
-          for (const [existingFeature, existingNumber] of featureMap.entries()) {
-            if (existingNumber === number && existingFeature !== feature) {
-              errors.push({
-                id: `num-${index}-${number}`,
-                text: line,
-                line: index + 1,
-                description: `标号"${number}"被用于不同的技术特征："${existingFeature}"和"${feature}"。`,
-                suggestion: "请为不同的技术特征使用不同的标号。",
-              })
-              break
-            }
-          }
-
-          featureMap.set(feature, number)
+      // 检查该标号是否已经用于不同的技术特征
+      for (const [existingFeature, existingNumber] of featureMap.entries()) {
+        if (existingNumber === number && existingFeature !== feature) {
+          errors.push({
+            id: `num-${index}-${number}`,
+            text: line,
+            line: index + 1,
+            description: `标号"${number}"被用于不同的技术特征："${existingFeature}"和"${feature}"。`,
+            suggestion: "请为不同的技术特征使用不同的标号。",
+          })
+          break
         }
-      })
-    }
+      }
+
+      featureMap.set(feature, number)
+    })
   })
 
   // 模拟一些错误结果
