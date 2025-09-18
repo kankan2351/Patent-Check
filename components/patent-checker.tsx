@@ -648,27 +648,6 @@ function checkReferences(text: string, textType: PatentTextType): ErrorItem[] {
     }
   })
 
-  // 模拟一些错误结果
-  if (errors.length === 0 && text.length > 100) {
-    if (textType === "claims") {
-      errors.push({
-        id: "ref-example-1",
-        text: "所述连接件(5)与固定架(4)相连接...",
-        line: 3,
-        description: '引用了标号"5"，但该标号未在权利要求中定义。',
-        suggestion: "请检查标号是否正确，或在权利要求中添加该标号的定义。",
-      })
-    } else {
-      errors.push({
-        id: "ref-example-1",
-        text: "所述连接件(5)与固定架(4)相连接...",
-        line: 12,
-        description: '引用了标号"5"，但该标号未在说明书中定义。',
-        suggestion: "请在说明书中添加对连接件(5)的定义。",
-      })
-    }
-  }
-
   return errors
 }
 
