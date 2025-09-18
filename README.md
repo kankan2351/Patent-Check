@@ -1,4 +1,4 @@
-# Patent-check
+# Patent-Check
 
 *Automatically synced with your [v0.dev](https://v0.dev) deployments*
 
@@ -7,8 +7,9 @@
 
 ## Overview
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+Patent-Check helps 审查专利文本，识别缺失的引用标号、标号与技术特征不一致等常见格式问题。The web app supports 自动识别文本类型（权利要求/说明书）、附图标记与说明书互检以及自定义规则管理，便于根据业务规范快速扩展校验逻辑。
+
+This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev). Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
 
 ## Deployment
 
